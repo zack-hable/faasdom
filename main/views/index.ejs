@@ -20,8 +20,9 @@
 
 <div class="container-fluid">
   <div class="row">
-    <div class="col-12 col-sm-12 col-md-12 col-lg-6 col-xl-6" style="padding-top: 15px; padding-bottom: 15px">
+    <div class="col-12 col-sm-12 col-md-12 col-lg-10 col-xl-10" style="padding-top: 15px; padding-bottom: 15px">
                   <div id="accordion">
+			  <!--
                     <div class="card">
                       <div class="card-header" id="headingOne">
                         <h5 class="mb-0">
@@ -30,8 +31,9 @@
                           </button>
                         </h5>
                       </div>
+			  -->
                   
-                      <div id="collapseOne" class="collapse show" aria-labelledby="headingOne" data-parent="#accordion">
+                      <!--<div id="collapseOne" class="collapse show" aria-labelledby="headingOne" data-parent="#accordion">
                         <div class="card-body">
                           <div class="row" style="padding-bottom: 10px">
                             <div class="col-2">
@@ -313,15 +315,94 @@
                     </div></div>
                       </div>
                     </div>
+			-->
                     <div class="card">
                       <div class="card-header" id="headingThree">
                         <h5 class="mb-0">
-                          <button class="btn btn-link collapsed" data-toggle="collapse" data-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                          <button class="btn btn-link" data-toggle="collapse" data-target="#collapseTwo" aria-expanded="true" aria-controls="collapseTwo">
+                            Run Split Workload Benchmark
+                          </button>
+                        </h5>
+                      </div>
+                      <div id="collapseTwo" class="collapse show" aria-labelledby="headingTwo" data-parent="#accordion">
+                        <div class="card-body">
+                          Benchmark with <a href="https://github.com/giltene/wrk2" target="_blank">wrk2</a> certain functions. You can choose how many requests per second should be sent and how long the benchmark should run.
+                          <div class="row">
+                              <div class="col-1" style="padding-top: 10px">  
+                                <b>CPU Requests per second</b>
+                                <div>
+                                  <input id="benchmarkCPURPS" value="100" type="number" name="benchmarkCPURPS" style="max-width: 100px">
+                                </div>
+                              </div>
+                              <div class="col-1" style="padding-top: 10px">  
+                                <b>I/O Requests per second</b>
+                                <div>
+                                  <input id="benchmarkIORPS" value="100" type="number" name="benchmarkIORPS" style="max-width: 100px">
+                                </div>
+                              </div>
+                              <div class="col-1" style="padding-top: 10px">  
+                                <b>CPU Duration (seconds)</b>
+                                <div>
+                                  <input id="benchmarkCPUDuration" value="60" type="number" name="benchmarkCPUDuration" style="max-width: 100px">
+                                </div>
+                              </div>
+                              <div class="col-1" style="padding-top: 10px">  
+                                <b>I/O Duration (seconds)</b>
+                                <div>
+                                  <input id="benchmarkIODuration" value="60" type="number" name="benchmarkIODuration" style="max-width: 100px">
+                                </div>
+                              </div>
+                              <div class="col-1" style="padding-top: 10px">  
+                                  <b>CPU Test</b>
+                                  <div>
+                                      <select id="benchmarkCPUTest" class="custom-select">
+                                          <option value="factors">CPU (Factors)</option>
+                                          <option value="matrix">CPU (Matrix)</option>
+                                        </select>
+                                      </div>
+                                </div>
+                              <div class="col-1" style="padding-top: 10px">  
+                                  <b>I/O Test</b>
+                                  <div>
+                                      <select id="benchmarkIOTest" class="custom-select">
+                                          <option value="latency">Latency</option>
+                                          <option value="filesystem">Filesystem</option>
+                                        </select>
+                                      </div>
+                                </div>
+                                <div class="col-3" style="padding-top: 10px">  
+                                    <b>N (if applicable):</b>
+                                    <div>
+                                      <input id="benchmarkN" value="200" type="number" name="benchmarkN" style="max-width: 200px">
+                                    </div>
+                                  </div>
+                              <div class="col-3" style="padding-top: 10px">  
+                                <b>Test Name</b>
+                                <div>
+                                  <input id="benchmarkSplitTestName" type="text" name="benchmarkSplitTestName" style="max-width: 200px">
+                                </div>
+                              </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-6">
+                                    <button id="benchmarkSplitButton" type="button" class="btn btn-primary" style="margin: 5px">Run Benchmark</button>
+                              </div>
+                              <div class="col-6">
+                                <b>Results:</b> <a href="http://localhost:3000" target="_blank">Grafana - http://localhost:3000</a>
+                              </div>
+                            </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="card">
+                      <div class="card-header" id="headingThree">
+                        <h5 class="mb-0">
+                          <button class="btn btn-link" data-toggle="collapse" data-target="#collapseThree" aria-expanded="true" aria-controls="collapseThree">
                             Run Benchmark
                           </button>
                         </h5>
                       </div>
-                      <div id="collapseThree" class="collapse" aria-labelledby="headingThree" data-parent="#accordion">
+                      <div id="collapseThree" class="collapse show" aria-labelledby="headingThree" data-parent="#accordion">
                         <div class="card-body">
                           Benchmark with <a href="https://github.com/giltene/wrk2" target="_blank">wrk2</a> certain functions. You can choose how many requests per second should be sent and how long the benchmark should run.
                           <div class="row">
@@ -372,7 +453,7 @@
                         </div>
                       </div>
                     </div>
-                    <div class="card">
+                    <!--<div class="card">
                       <div class="card-header" id="headingThree">
                         <h5 class="mb-0">
                           <button class="btn btn-link collapsed" data-toggle="collapse" data-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour">
@@ -476,9 +557,10 @@
                         </div>
                       </div>
                     </div>
+		    -->
                   </div>
     </div>
-    <div class="col-12 col-sm-12 col-md-12 col-lg-6 col-xl-6" style="padding-top: 15px; padding-bottom: 15px">
+    <div class="col-12 col-sm-12 col-md-12 col-lg-2 col-xl-2" style="padding-top: 15px; padding-bottom: 15px">
         <button id="clearButton" type="button" class="btn btn-primary" style="margin: 5px">Clear Output</button>
         <button id='showLogFileButton' type="button" class="btn btn-primary" style="margin: 5px">Show Error Log</button>
         <button id='cleanupLogFileButton' type="button" class="btn btn-danger" style="margin: 5px">Cleanup Error Log</button>
@@ -569,6 +651,20 @@ $('#stopButton').click(function cleanup(){
   $('#spinnerGeneral').hide();
   $.ajax({url: 'stop', type: 'get', success:function(res){
 
+  }});
+});
+
+$('#benchmarkSplitButton').click(function cleanup(){
+
+  var data = {};
+
+  data = { cpuRps: $('#benchmarkCPURPS').val(), ioRps: $('#benchmarkIORPS').val(), cpuDuration: $('#benchmarkCPUDuration').val(), ioDuration: $('#benchmarkIODuration').val(), cpuTest: $('#benchmarkCPUTest').val(), ioTest: $('#benchmarkIOTest').val(), n: $('#benchmarkN').val(), testName: $('#benchmarkSplitTestName').val() };
+
+  $('#spinnerGeneral').show();
+
+  $.ajax({url: 'loadsplittest', type: 'get', data: data, success:function(res){
+      $("#resultStart").html(res.data);
+      update();
   }});
 });
 
@@ -708,6 +804,7 @@ $(document).ready( function() {
   $('#testNameFilesystem').val(new Date().toISOString().slice(0,10) + '-FilesystemTest');
   $('#testNameCustom').val(new Date().toISOString().slice(0,10) + '-CustomTest');
   $('#benchmarkTestName').val(new Date().toISOString().slice(0,10) + '-Benchmark');
+  $('#benchmarkSplitTestName').val(new Date().toISOString().slice(0,10) + '-SplitBenchmark');
 });
 </script>
 

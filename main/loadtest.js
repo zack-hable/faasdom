@@ -128,10 +128,132 @@ function execShellCommand(cmd) {
 	});
 }
 
-async function loadtest(test, testName, rps, duration, n) {
+async function loadsplittest(cpuTest, ioTest, testName, cpuRps, ioRps, cpuDuration, ioDuration, n) {
 
     const wrk2 = 'docker run --rm bschitter/alpine-with-wrk2:0.1';
     loadUrls();
+    console.error(allUrls);
+
+    let error = false;
+
+    for(let i = 0; i<Math.min(allUrls[cpuTest].length, allUrls[ioTest].length); i++) {
+        allUrls[cpuTest][i].url += '?n=' + n;
+
+        // 1 request until completed
+        await Promise.all([request.get(allUrls[cpuTest][i].url), request.get(allUrls[ioTest][i].url)]);
+
+        // run for 10 seconds to avoid cold start latencies
+        await Promise.all([execShellCommand(wrk2 + ' -c100 -t2 -d10s -R' + cpuRps + ' -L ' + allUrls[cpuTest][i].url), execShellCommand(wrk2 + ' -c100 -t2 -d10s -R' + ioRps + ' -L ' + allUrls[ioTest][i].url)]);        
+
+        // sleep 10 seconds to avoid that the function is still under load
+        await new Promise(resolve => setTimeout(resolve, 10000));
+
+        // benchmark
+        let result = await Promise.all([execShellCommand(wrk2 + ' -c100 -t2 -d' + cpuDuration + 's -R' + cpuRps + ' -L ' + allUrls[cpuTest][i].url), execShellCommand(wrk2 + ' -c100 -t2 -d' + ioDuration + 's -R' + ioRps + ' -L ' + allUrls[ioTest][i].url)])
+        .catch((err) => {
+            console.error(err);
+            error = true;
+        });
+
+        if(error) {
+            break;
+        }
+	
+	let cpuResult = result[0];
+	let ioResult = result[1];
+
+	let statsCollector = (result) => {
+            let latency_avg = 0;
+            let latency_stdev = 0;
+            let latency_max = 0;
+            let total_count = 0;
+            let rps_avg = 0;
+            let percentile_50 = 0;
+            let percentile_95 = 0;
+            let percentile_99 = 0;
+            let errors = 0;
+            let lines = result.split('\n');
+            for(let j=0; j<lines.length; j++) {
+                if(lines[j].startsWith('#[Mean')) {
+                    let cleanLine = lines[j].replace(/ /g, '');
+                    let parts = cleanLine.split(',');
+                    latency_avg = parts[0].substring(parts[0].indexOf("=") + 1);
+                    latency_stdev = parts[1].substring(parts[1].indexOf("=") + 1).replace(']','');
+
+                } else if(lines[j].startsWith('#[Max')) {
+                    let cleanLine = lines[j].replace(/ /g, '');
+                    let parts = cleanLine.split(',');
+                    latency_max = parts[0].substring(parts[0].indexOf("=") + 1);
+                    total_count = parts[1].substring(parts[1].indexOf("=") + 1).replace(']','');
+
+                } else if(lines[j].startsWith('Requests/sec:')) {
+                    let cleanLine = lines[j].replace(/ /g, '');
+                    rps_avg = cleanLine.substring(cleanLine.indexOf(":") + 1);
+
+                } else if(lines[j].startsWith('  Socket errors:')) {
+                    let cleanLine = lines[j].replace(/ /g, '');
+                    cleanLine = cleanLine.substring(cleanLine.indexOf(":") + 1);
+                    let parts = cleanLine.split(',');
+                    for(let k=0; k<parts.length; k++) {
+                        errors += Number(parts[k].replace(/([^0-9])/g,''));
+                    }
+
+                } else if(lines[j].startsWith(' 50.000%')) {
+                    let cleanLine = lines[j].replace(/ /g, '');
+                    if(cleanLine.includes('ms')) {
+                        cleanLine = cleanLine.replace(/([a-z])/g,'');
+                        percentile_50 = cleanLine.substring(cleanLine.indexOf("%") + 1);
+                    } else {
+                        cleanLine = cleanLine.replace(/([a-z])/g,'');
+                        percentile_50 = cleanLine.substring(cleanLine.indexOf("%") + 1) * 1000;
+                    }
+
+                } else if(lines[j].startsWith(' 99.000%')) {
+                    let cleanLine = lines[j].replace(/ /g, '');
+                    if(cleanLine.includes('ms')) {
+                        cleanLine = cleanLine.replace(/([a-z])/g,'');
+                        percentile_99 = cleanLine.substring(cleanLine.indexOf("%") + 1);
+                    } else {
+                        cleanLine = cleanLine.replace(/([a-z])/g,'');
+                        percentile_99 = cleanLine.substring(cleanLine.indexOf("%") + 1) * 1000;
+                    }
+
+                } else if(lines[j].includes('0.950000')) {
+                    let cleanLine = lines[j].replace(/  +/g, ' ');
+                    let parts = cleanLine.split(' ');
+                    percentile_95 = Math.round(parts[1] * 100) / 100;
+                }
+            }
+	    return [latency_avg, latency_stdev, latency_max, total_count, rps_avg, percentile_50, percentile_95, percentile_99, errors].map((val) => {
+		    if (isNaN(val)) {
+			    return -1;
+		    }
+		    else {
+			    return val;
+		    }
+	    });
+	}
+
+	let cpuStats = statsCollector(cpuResult);
+	let ioStats = statsCollector(ioResult);
+	console.error(cpuStats);
+	console.error(ioStats);
+	let [cpuLatency_avg, cpuLatency_stdev, cpuLatency_max, cpuTotal_count, cpuRps_avg, cpuPercentile_50, cpuPercentile_95, cpuPercentile_99, cpuErrors] = cpuStats;
+	let [ioLatency_avg, ioLatency_stdev, ioLatency_max, ioTotal_count, ioRps_avg, ioPercentile_50, ioPercentile_95, ioPercentile_99, ioErrors] = ioStats;
+
+        insertIntoDB(cpuTest+'_benchmark', testName, allUrls[cpuTest][i].language, allUrls[cpuTest][i].provider, allUrls[cpuTest][i].memory, cpuDuration, cpuLatency_avg, cpuLatency_stdev, cpuLatency_max, cpuTotal_count, cpuRps, cpuRps_avg, cpuPercentile_50, cpuPercentile_95, cpuPercentile_99, cpuErrors, n);
+        insertIntoDB(ioTest+'_benchmark', testName, allUrls[ioTest][i].language, allUrls[ioTest][i].provider, allUrls[ioTest][i].memory, ioDuration, ioLatency_avg, ioLatency_stdev, ioLatency_max, ioTotal_count, ioRps, ioRps_avg, ioPercentile_50, ioPercentile_95, ioPercentile_99, ioErrors, n);
+
+    }
+
+    return !error;
+}
+
+async function loadtest(test, testName, rps, duration, workloadSplit, n) {
+
+    const wrk2 = 'docker run --rm bschitter/alpine-with-wrk2:0.1';
+    loadUrls();
+    console.error(allUrls);
 
     let error = false;
 
@@ -271,4 +393,4 @@ function insertIntoDB(test, testName, language, provider, memory, duration, late
     });
 }
 
-module.exports = { loadtest };
+module.exports = { loadtest, loadsplittest };

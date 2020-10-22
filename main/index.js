@@ -121,6 +121,14 @@ app.get('/stop', function(req, res, next) {
 	res.send({data: currentLogStatus, running: runningStatus});
 });
 
+app.get('/loadsplittest', function(req, res, next) {
+	runningStatus = true;
+	resetLogStatus();
+	currentLogStatus = 'Running Benchmark...';
+	loadsplittest(req.query.cpuTest, req.query.ioTest, req.query.testName, req.query.cpuRps, req.query.ioRps, req.query.cpuDuration, req.query.ioDuration, req.query.n);
+	res.send({data: currentLogStatus, running: runningStatus});
+});
+
 app.get('/loadtest', function(req, res, next) {
 	runningStatus = true;
 	resetLogStatus();
@@ -128,6 +136,18 @@ app.get('/loadtest', function(req, res, next) {
 	loadtest(req.query.test, req.query.testName, req.query.rps, req.query.duration, req.query.n);
 	res.send({data: currentLogStatus, running: runningStatus});
 });
+
+async function loadsplittest(cpuTest, ioTest, testName, cpuRps, ioRps, cpuDuration, ioDuration, n) {
+	let result = await loadtestModule.loadsplittest(cpuTest, ioTest, testName, cpuRps, ioRps, cpuDuration, ioDuration, n);
+	if(result) {
+		resetLogStatus();
+		currentLogStatus = 'Benchmark finished.';
+	} else {
+		resetLogStatus();
+		currentLogStatus = 'Benchmark failed.';
+	}
+	runningStatus = false;
+}
 
 async function loadtest(test, testName, rps, duration, n) {
 	let result = await loadtestModule.loadtest(test, testName, rps, duration, n);
