@@ -129,6 +129,14 @@ app.get('/loadsplittest', function(req, res, next) {
 	res.send({data: currentLogStatus, running: runningStatus});
 });
 
+app.get('/loadprioritytest', function(req, res, next) {
+	runningStatus = true;
+	resetLogStatus();
+	currentLogStatus = 'Running Benchmark...';
+	loadprioritytest(req.query.test, req.query.testName, req.query.rps, req.query.duration, req.query.n);
+	res.send({data: currentLogStatus, running: runningStatus});
+});
+
 app.get('/loadtest', function(req, res, next) {
 	runningStatus = true;
 	resetLogStatus();
@@ -139,6 +147,18 @@ app.get('/loadtest', function(req, res, next) {
 
 async function loadsplittest(cpuTest, ioTest, testName, cpuRps, ioRps, cpuDuration, ioDuration, n) {
 	let result = await loadtestModule.loadsplittest(cpuTest, ioTest, testName, cpuRps, ioRps, cpuDuration, ioDuration, n);
+	if(result) {
+		resetLogStatus();
+		currentLogStatus = 'Benchmark finished.';
+	} else {
+		resetLogStatus();
+		currentLogStatus = 'Benchmark failed.';
+	}
+	runningStatus = false;
+}
+
+async function loadprioritytest(test, testName, rps, duration, n) {
+	let result = await loadtestModule.loadprioritytest(test, testName, rps, duration, n);
 	if(result) {
 		resetLogStatus();
 		currentLogStatus = 'Benchmark finished.';

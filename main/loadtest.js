@@ -249,6 +249,136 @@ async function loadsplittest(cpuTest, ioTest, testName, cpuRps, ioRps, cpuDurati
     return !error;
 }
 
+async function loadprioritytest(test, testName, rps, duration, workloadSplit, n) {
+
+    const wrk2 = 'docker run --rm bschitter/alpine-with-wrk2:0.1';
+    loadUrls();
+    console.error(allUrls);
+
+    let error = false;
+
+    for(let i = 0; i<allUrls[test].length; i += 2) {
+
+        if(duration<30) {
+            duration = 30;
+        }
+        if(test == constants.FACTORS || test == constants.MATRIX) {
+            allUrls[test][i].url += '?n=' + n;
+            allUrls[test][i+1].url += '?n=' + n;
+        } else {
+            n = 0;
+        }
+
+        // 1 request until completed
+        await Promise.all([request.get(allUrls[test][i].url), request.get(allUrls[test][i+1].url)]);
+
+        // run for 10 seconds to avoid cold start latencies
+        await Promise.all([execShellCommand(wrk2 + ' -c100 -t2 -d10s -R' + rps + ' -L ' + allUrls[test][i].url), execShellCommand(wrk2 + ' -c100 -t2 -d10s -R' + rps + ' -L ' + allUrls[test][i+1].url)]); 
+
+        // sleep 10 seconds to avoid that the function is still under load
+        await new Promise(resolve => setTimeout(resolve, 10000));
+
+        // benchmark
+        let result = await Promise.all([execShellCommand(wrk2 + ' -c100 -t2 -d' + duration + 's -R' + rps + ' -L ' + allUrls[test][i].url), execShellCommand(wrk2 + ' -c100 -t2 -d' + duration + 's -R' + rps + ' -L ' + allUrls[test][i+1].url)])
+        .catch((err) => {
+            console.error(err);
+            error = true;
+        });
+
+        if(error) {
+            break;
+        }
+
+	let fn1Result = result[0];
+	let fn2Result = result[1];
+
+	let statsCollector = (result) => {
+            let latency_avg = 0;
+            let latency_stdev = 0;
+            let latency_max = 0;
+            let total_count = 0;
+            let rps_avg = 0;
+            let percentile_50 = 0;
+            let percentile_95 = 0;
+            let percentile_99 = 0;
+            let errors = 0;
+            let lines = result.split('\n');
+            for(let j=0; j<lines.length; j++) {
+                if(lines[j].startsWith('#[Mean')) {
+                    let cleanLine = lines[j].replace(/ /g, '');
+                    let parts = cleanLine.split(',');
+                    latency_avg = parts[0].substring(parts[0].indexOf("=") + 1);
+                    latency_stdev = parts[1].substring(parts[1].indexOf("=") + 1).replace(']','');
+
+                } else if(lines[j].startsWith('#[Max')) {
+                    let cleanLine = lines[j].replace(/ /g, '');
+                    let parts = cleanLine.split(',');
+                    latency_max = parts[0].substring(parts[0].indexOf("=") + 1);
+                    total_count = parts[1].substring(parts[1].indexOf("=") + 1).replace(']','');
+
+                } else if(lines[j].startsWith('Requests/sec:')) {
+                    let cleanLine = lines[j].replace(/ /g, '');
+                    rps_avg = cleanLine.substring(cleanLine.indexOf(":") + 1);
+
+                } else if(lines[j].startsWith('  Socket errors:')) {
+                    let cleanLine = lines[j].replace(/ /g, '');
+                    cleanLine = cleanLine.substring(cleanLine.indexOf(":") + 1);
+                    let parts = cleanLine.split(',');
+                    for(let k=0; k<parts.length; k++) {
+                        errors += Number(parts[k].replace(/([^0-9])/g,''));
+                    }
+
+                } else if(lines[j].startsWith(' 50.000%')) {
+                    let cleanLine = lines[j].replace(/ /g, '');
+                    if(cleanLine.includes('ms')) {
+                        cleanLine = cleanLine.replace(/([a-z])/g,'');
+                        percentile_50 = cleanLine.substring(cleanLine.indexOf("%") + 1);
+                    } else {
+                        cleanLine = cleanLine.replace(/([a-z])/g,'');
+                        percentile_50 = cleanLine.substring(cleanLine.indexOf("%") + 1) * 1000;
+                    }
+
+                } else if(lines[j].startsWith(' 99.000%')) {
+                    let cleanLine = lines[j].replace(/ /g, '');
+                    if(cleanLine.includes('ms')) {
+                        cleanLine = cleanLine.replace(/([a-z])/g,'');
+                        percentile_99 = cleanLine.substring(cleanLine.indexOf("%") + 1);
+                    } else {
+                        cleanLine = cleanLine.replace(/([a-z])/g,'');
+                        percentile_99 = cleanLine.substring(cleanLine.indexOf("%") + 1) * 1000;
+                    }
+
+                } else if(lines[j].includes('0.950000')) {
+                    let cleanLine = lines[j].replace(/  +/g, ' ');
+                    let parts = cleanLine.split(' ');
+                    percentile_95 = Math.round(parts[1] * 100) / 100;
+                }
+            }
+	    return [latency_avg, latency_stdev, latency_max, total_count, rps_avg, percentile_50, percentile_95, percentile_99, errors].map((val) => {
+		    if (isNaN(val)) {
+			    return -1;
+		    }
+		    else {
+			    return val;
+		    }
+	    });
+	}
+
+	let fn1Stats = statsCollector(fn1Result);
+	let fn2Stats = statsCollector(fn2Result);
+	console.error(fn1Stats);
+	console.error(fn2Stats);
+	let [fn1Latency_avg, fn1Latency_stdev, fn1Latency_max, fn1Total_count, fn1Rps_avg, fn1Percentile_50, fn1Percentile_95, fn1Percentile_99, fn1Errors] = fn1Stats;
+	let [fn2Latency_avg, fn2Latency_stdev, fn2Latency_max, fn2Total_count, fn2Rps_avg, fn2Percentile_50, fn2Percentile_95, fn2Percentile_99, fn2Errors] = fn2Stats;
+
+        insertIntoDB(test+'_benchmark', testName, allUrls[test][i].language, allUrls[test][i].provider, allUrls[test][i].memory, duration, fn1Latency_avg, fn1Latency_stdev, fn1Latency_max, fn1Total_count, rps, fn1Rps_avg, fn1Percentile_50, fn1Percentile_95, fn1Percentile_99, fn1Errors, n);
+        insertIntoDB(test+'_benchmark', testName, allUrls[test][i+1].language, allUrls[test][i+1].provider, allUrls[test][i+1].memory, duration, fn2Latency_avg, fn2Latency_stdev, fn2Latency_max, fn2Total_count, rps, fn2Rps_avg, fn2Percentile_50, fn2Percentile_95, fn2Percentile_99, fn2Errors, n);
+
+    }
+
+    return !error;
+}
+
 async function loadtest(test, testName, rps, duration, workloadSplit, n) {
 
     const wrk2 = 'docker run --rm bschitter/alpine-with-wrk2:0.1';
@@ -393,4 +523,4 @@ function insertIntoDB(test, testName, language, provider, memory, duration, late
     });
 }
 
-module.exports = { loadtest, loadsplittest };
+module.exports = { loadtest, loadsplittest, loadprioritytest };
