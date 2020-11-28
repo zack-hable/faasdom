@@ -1,1 +1,1 @@
-[{"url": "http://192.168.56.101:31112/function/latency", "language": "python", "provider": "openfaas", "memory": 0}]
+[{"url": "http://192.168.56.102:31112/function/latency", "language": "python", "provider": "openfaas", "memory": 0}]

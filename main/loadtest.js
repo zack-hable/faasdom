@@ -138,6 +138,7 @@ async function loadsplittest(cpuTest, ioTest, testName, cpuRps, ioRps, cpuDurati
 
     for(let i = 0; i<Math.min(allUrls[cpuTest].length, allUrls[ioTest].length); i++) {
         allUrls[cpuTest][i].url += '?n=' + n;
+        allUrls[ioTest][i].url += '?n=' + n;
 
         // 1 request until completed
         await Promise.all([request.get(allUrls[cpuTest][i].url), request.get(allUrls[ioTest][i].url)]);
